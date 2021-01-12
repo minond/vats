@@ -1,0 +1,30 @@
+NATS client for V. WIP.
+
+**Subscriber:**
+
+```
+~/code/vats $ v run main.v
+subscribing to foo (queue: foo) [OyzgFWAyhYPXywva]
+connection established to server
+GOT A MSG nats.Msg{
+    subject: 'foo'
+    sid: 'OyzgFWAyhYPXywva'
+    reply_to: ''
+    content_length: 3
+    payload: [3, 2, 1]
+}
+
+```
+
+**Publisher:**
+
+```
+~/code/v $ telnet localhost 4222
+Trying ::1...
+Connected to localhost.
+Escape character is '^]'.
+INFO {"server_id":"NAPBIKVOFK5EDQCCH6IDEBAU4PHCBKZSWAIKIWITM7KOP7ADML3HJSVS","server_name":"NAPBIKVOFK5EDQCCH6IDEBAU4PHCBKZSWAIKIWITM7KOP7ADML3HJSVS","version":"2.1.9","proto":1,"git_commit":"7c76626","go":"go1.14.10","host":"0.0.0.0","port":4222,"max_payload":1048576,"client_id":10,"client_ip":"::1"}
+pub foo 3
+321
++OK
+```
