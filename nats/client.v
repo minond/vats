@@ -2,6 +2,7 @@ module nats
 
 import net { dial_tcp }
 import strconv { atoi }
+import sync
 
 type MsgHandler = fn(Msg)
 
@@ -10,8 +11,10 @@ struct Client {
 
 mut:
 	connected bool
+	subscriptions map[string]MsgHandler
+
+	mux &sync.Mutex
 	buffer []string
-	subscriptions map[string][]MsgHandler
 }
 
 pub fn make_client(server_url string) ?Client {
@@ -19,7 +22,10 @@ pub fn make_client(server_url string) ?Client {
 		return error("unable to connect to $server_url")
 	}
 
-	return Client{conn: conn}
+	return Client{
+		conn: conn,
+		mux: &sync.Mutex{},
+	}
 }
 
 fn (mut client Client) write(str string) {
@@ -32,11 +38,14 @@ fn (mut client Client) write(str string) {
 }
 
 fn (mut client Client) flush() {
-	for str in client.buffer {
+	client.mux.m_lock()
+	buffer := client.buffer
+	client.buffer = []
+	client.mux.unlock()
+
+	for str in buffer {
 		client.conn.write_str(str)
 	}
-
-	client.buffer = []
 }
 
 pub fn (mut client Client) read() {
@@ -67,8 +76,8 @@ fn (mut client Client) handle_info(res string) {
 
 fn (mut client Client) handle_msg(res string) {
 	msg := parse_msg(res, client.conn.read_line()) or { return }
-	for subscription in client.subscriptions[msg.sid] {
-		subscription(msg)
+	if msg.sid in client.subscriptions {
+		client.subscriptions[msg.sid](msg)
 	}
 }
 
@@ -90,7 +99,7 @@ pub fn (mut client Client) subscribe(subject string, handler MsgHandler) bool {
 	sid := make_sid()
 	println("subscribing to $subject [$sid]")
 	client.write("sub $subject $sid\n")
-	client.subscriptions[sid] << handler
+	client.subscriptions[sid] = handler
 	return true
 }
 
@@ -98,6 +107,6 @@ pub fn (mut client Client) queue_subscribe(subject string, queue string, handler
 	sid := make_sid()
 	println("subscribing to $subject (queue: $queue) [$sid]")
 	client.write("sub $subject $queue $sid\n")
-	client.subscriptions[sid] << handler
+	client.subscriptions[sid] = handler
 	return true
 }
