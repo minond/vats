@@ -28,13 +28,16 @@ pub fn make_client(server_url string) ?Client {
 	}
 }
 
-fn (mut client Client) write(str string) {
-	if !client.connected {
-		client.buffer << str
-		return
-	}
+fn (mut client Client) write_line(str string) {
+	client.write("$str\r\n")
+}
 
-	client.conn.write_str(str)
+fn (mut client Client) write(str string) {
+	if client.connected {
+		client.conn.write_str(str)
+	} else {
+		client.buffer << str
+	}
 }
 
 fn (mut client Client) flush() {
@@ -86,27 +89,31 @@ fn (client Client) handle_err(res string) {
 }
 
 fn (mut client Client) handle_ping() {
-	println("ping/pong")
-	client.write("pong")
+	client.write_line("pong")
 }
 
 fn (mut client Client) handle_pong() {
-	println("pong/ping")
-	client.write("ping")
+	client.write_line("ping")
 }
 
-pub fn (mut client Client) subscribe(subject string, handler MsgHandler) bool {
+pub fn (mut client Client) subscribe(subject string, handler MsgHandler) {
 	sid := make_sid()
-	println("subscribing to $subject [$sid]")
-	client.write("sub $subject $sid\n")
+	client.write_line("sub $subject $sid")
 	client.subscriptions[sid] = handler
-	return true
 }
 
-pub fn (mut client Client) queue_subscribe(subject string, queue string, handler MsgHandler) bool {
+pub fn (mut client Client) queue_subscribe(subject string, queue string, handler MsgHandler) {
 	sid := make_sid()
-	println("subscribing to $subject (queue: $queue) [$sid]")
-	client.write("sub $subject $queue $sid\n")
+	client.write_line("sub $subject $queue $sid")
 	client.subscriptions[sid] = handler
-	return true
+}
+
+pub fn (mut client Client) publish(subject string, payload []byte) {
+	client.write_line("pub $subject $payload.len")
+	client.write_line("$payload.bytestr()")
+}
+
+pub fn (mut client Client) request(subject string, reply_to string, payload []byte) {
+	client.write_line("pub $subject $reply_to $payload.len")
+	client.write_line("$payload.bytestr()")
 }

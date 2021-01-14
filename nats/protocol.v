@@ -4,6 +4,7 @@ import strconv { atoi }
 
 // Syntax: MSG <subject> <sid> [reply-to] <#bytes>\r\n[payload]\r\n
 struct Msg {
+pub:
 	subject string
 	sid string
 	reply_to string
